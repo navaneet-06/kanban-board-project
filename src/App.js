@@ -1,154 +1,148 @@
-import React, { useEffect, useState } from "react";
-import Board from "./Components/Board/Board";
+import React, { useState, useEffect } from "react";
 import "./App.css";
-import Editable from "./Components/Editabled/Editable";
 
-export default function App() {
-  const [boards, setBoards] = useState(
-    JSON.parse(localStorage.getItem("prac-kanban")) || []
-  );
+function App() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [username, setUsername] = useState("");
 
-  const [targetCard, setTargetCard] = useState({
-    bid: "",
-    cid: "",
+  const [boards, setBoards] = useState(() => {
+    const saved = localStorage.getItem("boards");
+    return saved
+      ? JSON.parse(saved)
+      : [
+          { title: "Planning", tasks: [] },
+          { title: "Development", tasks: [] },
+          { title: "Testing", tasks: [] },
+          { title: "Deployment", tasks: [] },
+          { title: "Monitoring", tasks: [] }
+        ];
   });
 
-  const addboardHandler = (name) => {
-    const tempBoards = [...boards];
-    tempBoards.push({
-      id: Date.now() + Math.random() * 2,
-      title: name,
-      cards: [],
-    });
-    setBoards(tempBoards);
-  };
-
-  const removeBoard = (id) => {
-    const index = boards.findIndex((item) => item.id === id);
-    if (index < 0) return;
-
-    const tempBoards = [...boards];
-    tempBoards.splice(index, 1);
-    setBoards(tempBoards);
-  };
-
-  const addCardHandler = (id, title) => {
-    const index = boards.findIndex((item) => item.id === id);
-    if (index < 0) return;
-
-    const tempBoards = [...boards];
-    tempBoards[index].cards.push({
-      id: Date.now() + Math.random() * 2,
-      title,
-      labels: [],
-      date: "",
-      tasks: [],
-    });
-    setBoards(tempBoards);
-  };
-
-  const removeCard = (bid, cid) => {
-    const index = boards.findIndex((item) => item.id === bid);
-    if (index < 0) return;
-
-    const tempBoards = [...boards];
-    const cards = tempBoards[index].cards;
-
-    const cardIndex = cards.findIndex((item) => item.id === cid);
-    if (cardIndex < 0) return;
-
-    cards.splice(cardIndex, 1);
-    setBoards(tempBoards);
-  };
-
-  const dragEnded = (bid, cid) => {
-    let s_boardIndex, s_cardIndex, t_boardIndex, t_cardIndex;
-    s_boardIndex = boards.findIndex((item) => item.id === bid);
-    if (s_boardIndex < 0) return;
-
-    s_cardIndex = boards[s_boardIndex]?.cards?.findIndex(
-      (item) => item.id === cid
-    );
-    if (s_cardIndex < 0) return;
-
-    t_boardIndex = boards.findIndex((item) => item.id === targetCard.bid);
-    if (t_boardIndex < 0) return;
-
-    t_cardIndex = boards[t_boardIndex]?.cards?.findIndex(
-      (item) => item.id === targetCard.cid
-    );
-    if (t_cardIndex < 0) return;
-
-    const tempBoards = [...boards];
-    const sourceCard = tempBoards[s_boardIndex].cards[s_cardIndex];
-    tempBoards[s_boardIndex].cards.splice(s_cardIndex, 1);
-    tempBoards[t_boardIndex].cards.splice(t_cardIndex, 0, sourceCard);
-    setBoards(tempBoards);
-
-    setTargetCard({
-      bid: "",
-      cid: "",
-    });
-  };
-
-  const dragEntered = (bid, cid) => {
-    if (targetCard.cid === cid) return;
-    setTargetCard({
-      bid,
-      cid,
-    });
-  };
-
-  const updateCard = (bid, cid, card) => {
-    const index = boards.findIndex((item) => item.id === bid);
-    if (index < 0) return;
-
-    const tempBoards = [...boards];
-    const cards = tempBoards[index].cards;
-
-    const cardIndex = cards.findIndex((item) => item.id === cid);
-    if (cardIndex < 0) return;
-
-    tempBoards[index].cards[cardIndex] = card;
-
-    setBoards(tempBoards);
-  };
+  const [newBoard, setNewBoard] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    localStorage.setItem("prac-kanban", JSON.stringify(boards));
+    localStorage.setItem("boards", JSON.stringify(boards));
   }, [boards]);
+
+  const login = () => {
+    if (username.trim() !== "") setLoggedIn(true);
+  };
+
+  const addBoard = () => {
+    if (newBoard.trim() === "") return;
+    setBoards([...boards, { title: newBoard, tasks: [] }]);
+    setNewBoard("");
+  };
+
+  const addTask = (index) => {
+    const taskName = prompt("Enter Task Name");
+    const priority = prompt("Priority: High / Medium / Low");
+    const member = prompt("Assign Member");
+    const due = prompt("Due Date");
+
+    if (!taskName) return;
+
+    const updated = [...boards];
+    updated[index].tasks.push({
+      name: taskName,
+      priority: priority || "Medium",
+      member: member || "Team",
+      due: due || "N/A"
+    });
+
+    setBoards(updated);
+  };
+
+  const deleteTask = (boardIndex, taskIndex) => {
+    const updated = [...boards];
+    updated[boardIndex].tasks.splice(taskIndex, 1);
+    setBoards(updated);
+  };
+
+  if (!loggedIn) {
+    return (
+      <div className="login-page">
+        <div className="login-box">
+          <h1>DevOps Login</h1>
+          <input
+            type="text"
+            placeholder="Enter Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <button onClick={login}>Login</button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalTasks = boards.reduce((sum, b) => sum + b.tasks.length, 0);
 
   return (
     <div className="app">
-      <div className="app_nav">
-        <h1>Kanban Board</h1>
+      <div className="top-header">
+        <h1>DevOps Smart Dashboard</h1>
+        <p>Welcome, {username}</p>
       </div>
-      <div className="app_boards_container">
-        <div className="app_boards">
-          {boards.map((item) => (
-            <Board
-              key={item.id}
-              board={item}
-              addCard={addCardHandler}
-              removeBoard={() => removeBoard(item.id)}
-              removeCard={removeCard}
-              dragEnded={dragEnded}
-              dragEntered={dragEntered}
-              updateCard={updateCard}
-            />
-          ))}
-          <div className="app_boards_last">
-            <Editable
-              displayClass="app_boards_add-board"
-              editClass="app_boards_add-board_edit"
-              placeholder="Enter Board Name"
-              text="Add Board"
-              buttonText="Add Board"
-              onSubmit={addboardHandler}
-            />
+
+      <div className="stats">
+        <div className="card">Boards: {boards.length}</div>
+        <div className="card">Tasks: {totalTasks}</div>
+        <div className="card">User: {username}</div>
+      </div>
+
+      <div className="toolbar">
+        <input
+          type="text"
+          placeholder="Search Tasks..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <input
+          type="text"
+          placeholder="New Board Name"
+          value={newBoard}
+          onChange={(e) => setNewBoard(e.target.value)}
+        />
+
+        <button onClick={addBoard}>Add Board</button>
+      </div>
+
+      <div className="board-container">
+        {boards.map((board, index) => (
+          <div className="board" key={index}>
+            <h2>{board.title}</h2>
+
+            <button className="small-btn" onClick={() => addTask(index)}>
+              + Add Task
+            </button>
+
+            {board.tasks
+              .filter((task) =>
+                task.name.toLowerCase().includes(search.toLowerCase())
+              )
+              .map((task, i) => (
+                <div className="task" key={i}>
+                  <h4>{task.name}</h4>
+                  <p>Priority: {task.priority}</p>
+                  <p>Assigned: {task.member}</p>
+                  <p>Due: {task.due}</p>
+
+                  <button
+                    className="delete-btn"
+                    onClick={() => deleteTask(index, i)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
 }
+
+export default App;
